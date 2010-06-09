@@ -1,4 +1,7 @@
 Name: gifnooc
+Version: vcs
+Variant: danopia
+Origin: git://github.com/fredreichbier/gifnooc.git
 Description: coonfig for ooc
 SourcePath: .
 

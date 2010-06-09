@@ -3,32 +3,27 @@ import io/File
 
 import gifnooc/Errors
 
-SerializationEntry: class {
-    serialize, deserialize, validateValue, validateString: Pointer 
+SerializationEntry: class <T> {
+    serialize: Func(T) -> String
+    deserialize: Func(String) -> T
+    validateValue: Func(T) -> Bool
+    validateString: Func(String) -> Bool
+    
     init: func (=serialize, =deserialize, =validateValue, =validateString) {}
 }
 
 Registrar: class {
-    entries: static HashMap<String, SerializationEntry> = HashMap<String, SerializationEntry> new()
+    entries: static HashMap<Class, SerializationEntry> = HashMap<Class, SerializationEntry> new()
 
-    _addrToString: static func (ptr: Pointer) -> String {
-        str := String new(Pointer size + 1)
-        for(i: Int in 0..Pointer size) {
-            str[i] = ptr& as Char* [i]
-        }
-        str[Pointer size] = '\0'
-        str
+    // Now this is a beast.
+    addEntry: static func <T> (T: Class, serialize: Func(T) -> String, deserialize: Func(String) -> T, validateValue: Func(T) -> Bool, validateString: Func(String) -> Bool) {
+        This entries put(T, SerializationEntry<T> new(serialize, deserialize, validateValue, validateString))
     }
 
-    addEntry: static func (cls: Class, serialize, deserialize, validateValue, validateString: Func) {
-        This entries put(_addrToString(cls),\
-            SerializationEntry new(serialize as Pointer, deserialize as Pointer, validateValue as Pointer, validateString as Pointer))
-    }
-
-    getEntry: static func (cls: Class) -> SerializationEntry {
-        entry := This entries get(_addrToString(cls))
+    getEntry: static func <T> (T: Class) -> SerializationEntry<T> {
+        entry := This entries get(T)
         if(entry == null) {
-            SerializationError new(This, "No serialization This entries found for %s." format(cls name)) throw()
+            SerializationError new(This, "No serialization This entries found for %s." format(T name)) throw()
         }
         return entry
     }
@@ -37,8 +32,7 @@ Registrar: class {
         if(!validateValue(T, value)) {
             SerializationError new(This, "The '%s' object at 0x%x could not be validated." format(T name, value as Pointer)) throw()
         }
-        fnc := getEntry(T) serialize as Func(Pointer) -> Pointer
-        return fnc(value as Pointer) /* whoa. that is dirty. */
+        getEntry(T) serialize(value as T)
     }
 
     deserialize: static func <T> (T: Class, value: String) -> T {
@@ -55,26 +49,29 @@ Registrar: class {
     }
 
     validateValue: static func <T> (T: Class, value: T) -> Bool {
-         fnc := getEntry(T) validateValue as Func(T) -> Bool
-         return fnc(value)
+        getEntry(T) validateValue(value as T)
     }
 }
-/* builtin. */
+
+// Built-in entries
 Registrar addEntry(Int, \
     func (value: Int) -> String { value toString() }, \
     func (value: String) -> Int { value toInt() },
     func (value: Int) -> Bool { true },
     func (value: String) -> Bool { true /* TODO. */ })
+    
 Registrar addEntry(Bool, \
     func (value: Bool) -> String { value ? "yes" : "no" }, \
     func (value: String) -> Bool { value == "yes" },
     func (value: Bool) -> Bool { true },
     func (value: String) -> Bool { value == "yes" || value == "no" })
+    
 Registrar addEntry(String, \
     func (value: String) -> String { value }, \
     func (value: String) -> String { value },
     func (value: String) -> Bool { true },
     func (value: String) -> Bool { true })
+    
 Registrar addEntry(File, \
     func (value: File) -> String { value path }, \
     func (value: String) -> File { File new(value) },
