@@ -12,14 +12,14 @@ OptparseEntity: class extends Entity {
 
     init: func ~withParser (=parent, =parser, =key) {
     }
-    
+
     getOption: func <T> (path: String, T: Class, absolute: Bool) -> T {
         path = _getPath(path, absolute)
-        if(!parser values contains(key)) {
+        if(!parser values contains?(key)) {
            NoSuchOptionError new(This, "Parser didn't parse anything. Stab your developer!") throw()
         } else {
             map := parser values get(key, HashMap<String, String>)
-            if(map contains(path)) {
+            if(map contains?(path)) {
                 s := map[path]
                 if(Registrar validateString(T, s)) {
                     return Registrar deserialize(T, s)
